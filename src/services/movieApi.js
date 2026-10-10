@@ -1,13 +1,75 @@
-const API_URL = `${import.meta.env.VITE_API_URL}/api/movies/`;
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
-export async function getMovies() {
-  const response = await fetch(API_URL);
+const MOVIES_API_URL = `${API_BASE_URL}/api/movies/`;
+const SHOWS_API_URL = `${API_BASE_URL}/api/shows/`;
+const SHOW_SEATS_API_URL = `${API_BASE_URL}/api/show-seats/`;
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch movies");
+// =========================
+// SHARED REQUEST HANDLER
+// =========================
+
+async function request(url, options = {}) {
+  let response;
+
+  try {
+    response = await fetch(url, options);
+  } catch (error) {
+    console.error("Network error:", error);
+
+    throw new Error(
+      "Unable to connect to the server. Please check your connection and try again."
+    );
   }
 
-  return response.json();
+  let data = null;
+
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  if (!response.ok) {
+    console.error("API error:", {
+      status: response.status,
+      url,
+      data,
+    });
+
+    let message = `Request failed with status ${response.status}`;
+
+    if (data?.detail) {
+      message = data.detail;
+    } else if (data?.error) {
+      message = data.error;
+    } else if (data?.message) {
+      message = data.message;
+    } else if (data && typeof data === "object") {
+      const messages = Object.values(data)
+        .flat()
+        .filter(Boolean);
+
+      if (messages.length > 0) {
+        message = messages.join(", ");
+      }
+    }
+
+    throw new Error(message);
+  }
+
+  return data;
+}
+
+// =========================
+// MOVIES
+// =========================
+
+export async function getMovies() {
+  return request(MOVIES_API_URL);
+}
+
+export async function getMovie(id) {
+  return request(`${MOVIES_API_URL}${id}/`);
 }
 
 export async function createMovie(movie) {
@@ -23,32 +85,10 @@ export async function createMovie(movie) {
     }
   });
 
-  const response = await fetch(API_URL, {
+  return request(MOVIES_API_URL, {
     method: "POST",
     body: formData,
   });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.detail ||
-        data.error ||
-        "Failed to create movie"
-    );
-  }
-
-  return data;
-}
-
-export async function getMovie(id) {
-  const response = await fetch(`${API_URL}${id}/`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch movie");
-  }
-
-  return response.json();
 }
 
 export async function updateMovie(id, movie) {
@@ -64,70 +104,45 @@ export async function updateMovie(id, movie) {
     }
   });
 
-  const response = await fetch(`${API_URL}${id}/`, {
+  return request(`${MOVIES_API_URL}${id}/`, {
     method: "PUT",
     body: formData,
   });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data.detail ||
-        data.error ||
-        "Failed to update movie"
-    );
-  }
-
-  return data;
 }
 
 export async function deleteMovie(id) {
-  const response = await fetch(`${API_URL}${id}/`, {
+  await request(`${MOVIES_API_URL}${id}/`, {
     method: "DELETE",
   });
 
-  if (!response.ok) {
-    throw new Error("Failed to delete movie");
-  }
+  return true;
 }
 
+// =========================
+// SHOWS
+// =========================
+
 export async function getShows() {
-  const response = await fetch(
-    `${API_URL.replace("/movies/", "/shows/")}`
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch shows");
-  }
-
-  return response.json();
+  return request(SHOWS_API_URL);
 }
 
 export async function getShow(id) {
-  const response = await fetch(
-    `${API_URL.replace("/movies/", "/shows/")}${id}/`
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch show");
-  }
-
-  return response.json();
+  return request(`${SHOWS_API_URL}${id}/`);
 }
 
+// =========================
+// SHOW SEATS
+// =========================
+
 export async function getShowSeats(showId) {
-  const response = await fetch(
-    `${import.meta.env.VITE_API_URL}/api/show-seats/?show=${showId}`
+  const data = await request(
+    `${SHOW_SEATS_API_URL}?show=${showId}`
   );
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch seats");
-  }
-
-  const data = await response.json();
-
-  console.log("DJANGO SHOW SEATS RESPONSE:", data);
+  console.log(
+    "DJANGO SHOW SEATS RESPONSE:",
+    data
+  );
 
   return data;
 }

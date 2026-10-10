@@ -6,6 +6,7 @@ import {
   Plus,
   Search,
   Trash2,
+  Armchair,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -46,15 +47,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-import {
-  getVendorBranches,
-} from "@/services/vendorApi";
 
 import {
   getVendorHalls,
   createVendorHall,
   updateVendorHall,
   deleteVendorHall,
+  getVendorBranches,
+  generateVendorSeats,
 } from "@/services/vendorApi";
 
 
@@ -80,6 +80,17 @@ export default function VendorHalls() {
   });
 
   const [error, setError] = useState("");
+  const [seatDialogOpen, setSeatDialogOpen] = useState(false);
+  const [generatingSeats, setGeneratingSeats] = useState(false);
+  const [selectedHall, setSelectedHall] = useState(null);
+
+  const [seatForm, setSeatForm] = useState({
+    rows: "",
+    seats_per_row: "",
+    seat_type: "STANDARD",
+  });
+
+  const [seatResult, setSeatResult] = useState(null);
 
 
   async function loadData() {
@@ -278,6 +289,81 @@ export default function VendorHalls() {
       setSaving(false);
     }
   }
+  function openSeatDialog(hall) {
+  setSelectedHall(hall);
+
+  setSeatForm({
+    rows: "",
+    seats_per_row: "",
+    seat_type: "STANDARD",
+  });
+
+  setSeatResult(null);
+  setError("");
+  setSeatDialogOpen(true);
+}
+
+
+function closeSeatDialog() {
+  if (generatingSeats) return;
+
+  setSeatDialogOpen(false);
+  setSelectedHall(null);
+  setSeatResult(null);
+}
+
+
+function handleSeatFormChange(event) {
+  const { name, value } = event.target;
+
+  setSeatForm((previous) => ({
+    ...previous,
+    [name]: value,
+  }));
+}
+
+
+async function handleGenerateSeats(event) {
+  event.preventDefault();
+
+  if (!selectedHall) {
+    return;
+  }
+
+  if (!seatForm.rows.trim()) {
+    setError("Please enter the rows.");
+    return;
+  }
+
+  if (
+    !seatForm.seats_per_row ||
+    Number(seatForm.seats_per_row) <= 0
+  ) {
+    setError("Seats per row must be greater than 0.");
+    return;
+  }
+
+  try {
+    setGeneratingSeats(true);
+    setError("");
+    setSeatResult(null);
+
+    const result = await generateVendorSeats({
+      hall: selectedHall.id,
+      rows: seatForm.rows.trim().toUpperCase(),
+      seats_per_row: Number(seatForm.seats_per_row),
+      seat_type: seatForm.seat_type,
+    });
+
+    setSeatResult(result);
+  } catch (err) {
+    setError(
+      err.message || "Failed to generate seats."
+    );
+  } finally {
+    setGeneratingSeats(false);
+  }
+}
 
 
   if (loading) {
@@ -426,31 +512,42 @@ export default function VendorHalls() {
                   </p>
                 </div>
 
+              <div className="grid grid-cols-2 gap-2">
 
-                <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    openSeatDialog(hall)
+                  }
+                  className="border-white/10 bg-transparent text-white hover:bg-white/5"
+                >
+                  <Armchair className="mr-2 h-4 w-4" />
+                  Seats
+                </Button>
 
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      openEditDialog(hall)
-                    }
-                    className="flex-1 border-white/10 bg-transparent text-white hover:bg-white/5"
-                  >
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit
-                  </Button>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    openEditDialog(hall)
+                  }
+                  className="border-white/10 bg-transparent text-white hover:bg-white/5"
+                >
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </Button>
 
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      openDeleteDialog(hall)
-                    }
-                    className="border-red-500/20 bg-transparent text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                <Button
+                  variant="outline"
+                  onClick={() =>
+                    openDeleteDialog(hall)
+                  }
+                  className="col-span-2 border-red-500/20 bg-transparent text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete Hall
+                </Button>
 
-                </div>
+              </div>
 
               </CardContent>
             </Card>

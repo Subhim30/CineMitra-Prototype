@@ -289,3 +289,29 @@ export async function deleteVendorSeat(id) {
   }
 }
 
+export async function generateVendorSeats(payload) {
+  const response = await fetch(
+    "http://127.0.0.1:8000/api/vendor/seats/generate/",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Token ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify(payload),
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.detail ||
+        data.error ||
+        "Failed to generate seats."
+    );
+  }
+
+  return data;
+}
+
